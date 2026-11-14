@@ -1,0 +1,125 @@
+body {
+    background:
+        radial-gradient(ellipse 90% 60% at 50% 100%, rgba(138, 74, 32, 0.35) 0%, transparent 70%),
+        linear-gradient(to bottom, #26282e 0%, #2c2e35 34%, #211a14 60%, #140f0b 100%);
+    background-attachment: fixed;
+    color: white;
+    text-align: center;
+    font-family: sans-serif;
+}
+
+.stage {
+    position: relative;
+    width: fit-content;
+    margin: 0 auto;
+}
+
+canvas {
+    display: block;
+    position: relative;
+    z-index: 1;
+    image-rendering: pixelated;
+    /* Actual size is set by fit_canvas_to_viewport() in main.js */
+}
+
+/* ------------------------------------------------------------------
+   CSS guitar neck, drawn behind the transparent canvas.
+   The trapezoids are derived from FAR_SCALE and LANE_WIDTH_SCALE in
+   main.js, so the fretboard edges sit exactly on the outer lane lines.
+   ------------------------------------------------------------------ */
+.guitar-neck {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.fretboard,
+.strings {
+    position: absolute;
+}
+
+/* Portrait: neck runs from the top (far) to the body at the bottom.
+   Lane geometry: far edges at 42.9% / 57.1%, near corners at -6.9% / 106.9%. */
+.stage.portrait .guitar-neck {
+    background: transparent;
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 80%, transparent 92%);
+    mask-image: linear-gradient(to bottom, #000 0%, #000 80%, transparent 92%);
+}
+
+.stage.portrait .fretboard {
+    left: -6.1%;
+    right: -6.1%;
+    top: 6.25%;
+    bottom: 0;
+    clip-path: polygon(43.3% 0, 56.7% 0, 100% 100%, 0 100%);
+    background:
+        radial-gradient(circle at 50% 36%, rgba(222, 205, 165, 0.85) 0 0.55%, transparent 0.7%),
+        radial-gradient(circle at 50% 50%, rgba(222, 205, 165, 0.85) 0 0.55%, transparent 0.7%),
+        radial-gradient(circle at 50% 64%, rgba(222, 205, 165, 0.85) 0 0.55%, transparent 0.7%),
+        linear-gradient(90deg,
+            rgba(0, 0, 0, 0.65) 0%,
+            rgba(0, 0, 0, 0) 24%,
+            rgba(255, 226, 180, 0.10) 50%,
+            rgba(0, 0, 0, 0) 76%,
+            rgba(0, 0, 0, 0.65) 100%),
+        repeating-linear-gradient(to bottom,
+            #1e1b18 0 5.35%,
+            #c4ac7e 5.35% 5.75%,
+            #171411 5.75% 5.95%),
+        linear-gradient(90deg, #241e18, #46392a 50%, #241e18);
+}
+
+.stage.portrait .strings {
+    left: -6.1%;
+    right: -6.1%;
+    top: 6.25%;
+    bottom: 0;
+    clip-path: polygon(43.3% 0, 56.7% 0, 100% 100%, 0 100%);
+    background: repeating-conic-gradient(from 180deg at 50% 0%,
+        rgba(232, 214, 174, 0.75) 0deg 0.45deg,
+        transparent 0.45deg 9.8deg);
+    opacity: 0.9;
+}
+
+/* Landscape: neck runs from the body on the left to the headstock on the right.
+   Lane geometry: far edges at 37.5% / 51.7%, near corners at 2.35% / 97%. */
+.stage.landscape .guitar-neck {
+    background: transparent;
+}
+
+.stage.landscape .fretboard {
+    left: 6.25%;
+    right: 0;
+    top: 8.91%;
+    bottom: -2.83%;
+    clip-path: polygon(0 2.35%, 100% 37.55%, 100% 51.75%, 0 97%);
+    background:
+        radial-gradient(circle at 34% 50%, rgba(222, 205, 165, 0.85) 0 0.55%, transparent 0.7%),
+        radial-gradient(circle at 48% 50%, rgba(222, 205, 165, 0.85) 0 0.55%, transparent 0.7%),
+        radial-gradient(circle at 62% 50%, rgba(222, 205, 165, 0.85) 0 0.55%, transparent 0.7%),
+        linear-gradient(180deg,
+            rgba(0, 0, 0, 0.65) 0%,
+            rgba(0, 0, 0, 0) 24%,
+            rgba(255, 226, 180, 0.10) 50%,
+            rgba(0, 0, 0, 0) 76%,
+            rgba(0, 0, 0, 0.65) 100%),
+        repeating-linear-gradient(to right,
+            #1e1b18 0 5.35%,
+            #c4ac7e 5.35% 5.75%,
+            #171411 5.75% 5.95%),
+        linear-gradient(180deg, #241e18, #46392a 50%, #241e18);
+}
+
+.stage.landscape .strings {
+    left: 6.25%;
+    right: 0;
+    top: 8.91%;
+    bottom: -2.83%;
+    clip-path: polygon(0 2.35%, 100% 37.55%, 100% 51.75%, 0 97%);
+    background: repeating-conic-gradient(from 270deg at 100% 44.65%,
+        rgba(232, 214, 174, 0.75) 0deg 0.45deg,
+        transparent 0.45deg 7.6deg);
+    opacity: 0.9;
+}
