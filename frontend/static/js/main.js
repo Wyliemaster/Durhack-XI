@@ -1,5 +1,5 @@
 const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+const ctx = canvas.getContext("2d", { alpha: true, desynchronized: true });
 const stage = document.querySelector(".stage");
 
 const CHANNELS = 4;
@@ -161,7 +161,6 @@ var spawn_interval = 1; // minimum seconds between notes (updated from the tempo
 var spawn_timer = 0;
 
 // Song used to drive note spawning
-const SONG_SRC = "/static/assets/song.mp3";
 const SONG_VOLUME = 0.6;
 const NOTE_SPEED = 200; // fallback speed, px per second in lane space
 const LEAD_BEATS = 4;   // notes take this many beats to reach the circles
@@ -203,15 +202,6 @@ function set_sync_offset(new_offset) {
     }
 }
 
-var song_audio = new Audio(SONG_SRC);
-song_audio.preload = "auto";
-song_audio.volume = SONG_VOLUME;
-song_audio.addEventListener("ended", () => {
-    song_started = false;
-    active_notes.length = 0;
-    clear_effects();
-});
-
 var song_started = false;
 var song_starting = false;
 var beats_loaded = false;
@@ -222,8 +212,6 @@ var song_buffer = null;
 var song_source = null;
 var song_gain = null;
 var song_start_time = 0;
-var song_use_webaudio = false;
-var song_pending_start = false;
 
 // Placeholder texture shown above a circle while it flashes
 var placeholder_image = new Image();
@@ -232,7 +220,7 @@ placeholder_image.src = "/static/assets/placeholder.png";
 var effects = [];
 const EFFECT_DURATION = 0.5; // seconds
 const FIRE_COLORS = ["#fff3a0", "#ffd23f", "#ff9f1c", "#ff5e00"];
-const EFFECT_PARTICLES = 120;
+const EFFECT_PARTICLES = 80;
 
 // Pre-rendered glow sprites and reusable particle objects. Drawing a cached
 // image is far cheaper than building an arc path for every particle.
@@ -245,9 +233,8 @@ var effect_pool = [];
 const CIRCLE_FLASH_DURATION = 0.15; // seconds
 
 // How close (in seconds) a press must be to the note's centre reaching the
-// circle centre. This judges input against the music clock instead of the
-// generous rectangle overlap.
-const HIT_WINDOW = 0.12;
+// circle centre. Wider = more forgiving.
+const HIT_WINDOW = 0.22;
 
 // Predictive speed correction: if a note's projected arrival drifts from its
 // target, it speeds up/slows down to converge instead of teleporting.
@@ -476,7 +463,12 @@ function gameLoop() {
     ctx.font = "60px Arial";
     ctx.fillText("Score: " + score, canvas.width / 2 - ctx.measureText("Score: " + score).width / 2, TITLE_BOUNDARY / 2 + 20);
 
-    if (!song_started) {
+    if (!song_buffer) {
+        ctx.font = "40px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("Upload a song to play", canvas.width / 2, canvas.height * 0.5);
+        ctx.textAlign = "left";
+    } else if (!song_started) {
         ctx.font = "40px Arial";
         ctx.textAlign = "center";
         ctx.fillText("Press any key to start", canvas.width / 2, canvas.height * 0.5);
@@ -761,41 +753,101 @@ function select_beats(beats) {
     return selected;
 }
 
-async function load_song_beats() {
+function apply_song_buffer(buffer) {
+    const analysis = detect_beat_times(buffer);
+
+    song_buffer = buffer;
+    beat_interval = analysis.interval;
+    spawn_interval = MIN_NOTE_GAP;
+
+    selected_beats = select_beats(analysis.beats);
+    beat_index = 0;
+    beats_loaded = true;
+
+    console.log(
+        "Beat analysis: ~" + (60 / beat_interval).toFixed(1) + " BPM, " +
+        analysis.beats.length + " grid beats, " +
+        selected_beats.length + " notes selected (min gap " +
+        spawn_interval.toFixed(2) + "s)."
+    );
+}
+
+function stop_song() {
+    if (song_source) {
+        song_source.onended = null;
+
+        try {
+            song_source.stop();
+        } catch (error) {
+            // Already stopped
+        }
+
+        song_source.disconnect();
+        song_source = null;
+    }
+
+    if (song_gain) {
+        song_gain.disconnect();
+        song_gain = null;
+    }
+
+    song_started = false;
+    song_starting = false;
+    beat_index = 0;
+
+    active_notes.length = 0;
+    clear_effects();
+
+    last_time = performance.now();
+}
+
+async function handle_song_upload(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) {
+        return;
+    }
+
+    const status = document.getElementById("song-name");
+    if (status) {
+        status.textContent = "Loading " + file.name + "...";
+    }
+
     try {
-        const response = await fetch(SONG_SRC);
-        const data = await response.arrayBuffer();
+        const data = await file.arrayBuffer();
+
+        if (status) {
+            status.textContent = "Decoding " + file.name + "...";
+        }
+
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
         const analysis_context = new AudioContextClass();
         const buffer = await analysis_context.decodeAudioData(data);
-        const analysis = detect_beat_times(buffer);
 
-        song_buffer = buffer;
-        beat_interval = analysis.interval;
-        spawn_interval = MIN_NOTE_GAP;
+        if (status) {
+            status.textContent = "Analysing beats...";
+        }
 
-        selected_beats = select_beats(analysis.beats);
-        beat_index = 0;
-
-        console.log(
-            "Beat analysis: ~" + (60 / beat_interval).toFixed(1) + " BPM, " +
-            analysis.beats.length + " grid beats, " +
-            selected_beats.length + " notes selected (min gap " +
-            spawn_interval.toFixed(2) + "s)."
-        );
+        // Let the status text paint before the synchronous analysis pass
+        await new Promise((resolve) => setTimeout(resolve, 20));
 
         await analysis_context.close();
-    } catch (error) {
-        console.warn("Beat analysis failed; falling back to timed notes.", error);
-        selected_beats = [];
-    } finally {
-        beats_loaded = true;
 
-        if (song_pending_start && song_buffer) {
-            song_pending_start = false;
-            start_song();
+        stop_song();
+        apply_song_buffer(buffer);
+
+        if (status) {
+            status.textContent = file.name + " (ready)";
+        }
+    } catch (error) {
+        console.warn("Could not load uploaded song.", error);
+
+        if (status) {
+            status.textContent = "Could not read that audio file";
         }
     }
+
+    // Allow selecting the same file again later
+    event.target.value = "";
 }
 
 function start_song() {
@@ -803,19 +855,19 @@ function start_song() {
         return;
     }
 
-    if (!song_buffer && !beats_loaded) {
-        // Decoding/analysis is still running; start as soon as it finishes
-        song_pending_start = true;
+    if (!song_buffer) {
         return;
     }
 
     const audio = get_audio_context();
+    if (!audio) {
+        return;
+    }
 
     function begin_playback() {
         song_starting = false;
         song_started = true;
         beat_index = 0;
-        song_use_webaudio = true;
 
         // Small scheduling lead so the first buffer chunk is ready
         song_start_time = audio.currentTime + 0.1;
@@ -835,46 +887,29 @@ function start_song() {
         song_source.start(song_start_time);
     }
 
-    if (song_buffer && audio) {
-        song_starting = true;
+    song_starting = true;
 
-        // Wait until the context is actually running before choosing a start
-        // time; otherwise the source can start late and the whole song shifts
-        // relative to the note clock.
-        if (audio.state === "running") {
-            begin_playback();
-        } else {
-            audio.resume().then(begin_playback).catch(() => {
-                song_starting = false;
-                song_started = false;
-            });
-        }
-        return;
+    // Wait until the context is actually running before choosing a start
+    // time; otherwise the source can start late and the whole song shifts
+    // relative to the note clock.
+    if (audio.state === "running") {
+        begin_playback();
+    } else {
+        audio.resume().then(begin_playback).catch(() => {
+            song_starting = false;
+            song_started = false;
+        });
     }
-
-    // Fallback: decoded buffer unavailable
-    song_started = true;
-    song_starting = false;
-    beat_index = 0;
-    song_use_webaudio = false;
-    song_audio.currentTime = 0;
-    song_audio.play().catch(() => {
-        song_started = false;
-    });
 }
 
 function get_song_time() {
-    if (!song_started) {
+    if (!song_started || !audio_context) {
         return 0;
     }
 
-    if (song_use_webaudio && audio_context) {
-        // Compensate for output latency so notes land with the sound heard
-        const latency = audio_context.outputLatency || 0;
-        return Math.max(0, audio_context.currentTime - song_start_time - latency);
-    }
-
-    return song_audio.currentTime;
+    // Compensate for output latency so notes land with the sound heard
+    const latency = audio_context.outputLatency || 0;
+    return Math.max(0, audio_context.currentTime - song_start_time - latency);
 }
 
 function spawn_beat_notes() {
@@ -894,18 +929,16 @@ function spawn_beat_notes() {
         }
 
         beat_index++;
-        const time_until_beat = hit_time - now;
+        const late = now - spawn_at;
 
-        // Skip beats that have already passed by more than a frame or two
-        if (time_until_beat < -0.25) {
+        // Never drop a note in partway down the lane. If we missed its
+        // spawn window, skip it; the first playable notes start at the top.
+        if (late > 0.25) {
             continue;
         }
 
         const note = new Note(Math.floor(Math.random() * CHANNELS), note_speed, hit_time);
-
-        // If we are already inside the lead time (e.g. song just started),
-        // start the note partway down its lane so it still lands on the beat.
-        note.t = Math.max(0, Math.min(1, 1 - time_until_beat / travel_time));
+        note.t = 0;
         active_notes.push(note);
     }
 }
@@ -1263,7 +1296,10 @@ if (DEBUG_INPUT_ENABLED) {
 document.addEventListener("pointerdown", start_song);
 document.addEventListener("keydown", start_song);
 
-load_song_beats();
+const song_upload = document.getElementById("song-upload");
+if (song_upload) {
+    song_upload.addEventListener("change", handle_song_upload);
+}
 
 set_orientation("portrait");
 warm_up_canvas();

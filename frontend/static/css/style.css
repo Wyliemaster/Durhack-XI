@@ -123,3 +123,44 @@ canvas {
         transparent 0.45deg 7.6deg);
     opacity: 0.9;
 }
+
+.song-controls {
+    position: fixed;
+    top: 12px;
+    right: 16px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 320px;
+    padding: 7px 11px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 8px;
+    background: rgba(18, 18, 18, 0.78);
+    font-size: 13px;
+}
+
+.song-upload {
+    cursor: pointer;
+    padding: 5px 9px;
+    border-radius: 6px;
+    background: #f0d8a8;
+    color: #161616;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.song-upload:hover {
+    background: #ffe9bd;
+}
+
+.song-upload input {
+    display: none;
+}
+
+#song-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    opacity: 0.75;
+}
