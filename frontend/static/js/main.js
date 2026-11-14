@@ -451,6 +451,43 @@ function draw_square(x, y, width, height, colour = "white")
     ctx.fill();
 }
 
+function draw_prompt(title, subtitle) {
+    const width = Math.min(canvas.width * 0.86, 720);
+    const height = 170;
+    const x = (canvas.width - width) / 2;
+    const y = canvas.height * 0.5 - height / 2;
+    const radius = 20;
+
+    ctx.save();
+    ctx.fillStyle = "rgba(12, 12, 14, 0.78)";
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.24)";
+    ctx.lineWidth = 2;
+
+    ctx.beginPath();
+    if (typeof ctx.roundRect === "function") {
+        ctx.roundRect(x, y, width, height, radius);
+    } else {
+        ctx.rect(x, y, width, height);
+    }
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    ctx.fillStyle = "#f3e5c8";
+    ctx.font = "600 38px Arial";
+    ctx.fillText(title, canvas.width / 2, y + 64);
+
+    ctx.fillStyle = "rgba(255, 255, 255, 0.66)";
+    ctx.font = "22px Arial";
+    ctx.fillText(subtitle, canvas.width / 2, y + 118);
+
+    ctx.restore();
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+}
+
 function gameLoop() {
     const delta_time = get_delta_time();
 
@@ -462,18 +499,6 @@ function gameLoop() {
     
     ctx.font = "60px Arial";
     ctx.fillText("Score: " + score, canvas.width / 2 - ctx.measureText("Score: " + score).width / 2, TITLE_BOUNDARY / 2 + 20);
-
-    if (!song_buffer) {
-        ctx.font = "40px Arial";
-        ctx.textAlign = "center";
-        ctx.fillText("Upload a song to play", canvas.width / 2, canvas.height * 0.5);
-        ctx.textAlign = "left";
-    } else if (!song_started) {
-        ctx.font = "40px Arial";
-        ctx.textAlign = "center";
-        ctx.fillText("Press any key to start", canvas.width / 2, canvas.height * 0.5);
-        ctx.textAlign = "left";
-    }
 
     if (DEBUG_INPUT_ENABLED) {
         ctx.font = "24px Arial";
@@ -588,6 +613,12 @@ function gameLoop() {
                 poll_input_and_note();
             }
         }
+    }
+
+    if (!song_buffer) {
+        draw_prompt("NO SONG LOADED", "Use \u201cUpload song\u201d to choose an audio file");
+    } else if (!song_started) {
+        draw_prompt("PRESS ANY KEY TO START", "Song ready");
     }
 
     tick++;
@@ -794,6 +825,7 @@ function stop_song() {
     song_started = false;
     song_starting = false;
     beat_index = 0;
+    score = 0;
 
     active_notes.length = 0;
     clear_effects();
@@ -865,9 +897,17 @@ function start_song() {
     }
 
     function begin_playback() {
+        if (!song_starting) {
+            return;
+        }
+
         song_starting = false;
         song_started = true;
         beat_index = 0;
+        score = 0;
+        tick = 0;
+        spawn_timer = 0;
+        circle_flash_timers.fill(0);
 
         // Small scheduling lead so the first buffer chunk is ready
         song_start_time = audio.currentTime + 0.1;
@@ -1294,7 +1334,19 @@ if (DEBUG_INPUT_ENABLED) {
 
 // Start the song on the first user gesture (audio autoplay policy)
 document.addEventListener("pointerdown", start_song);
-document.addEventListener("keydown", start_song);
+document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") {
+        start_song();
+    }
+});
+
+// Escape stops playback and returns to the ready screen
+document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && (song_started || song_starting)) {
+        stop_song();
+        event.preventDefault();
+    }
+});
 
 const song_upload = document.getElementById("song-upload");
 if (song_upload) {
