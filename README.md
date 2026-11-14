@@ -1,1 +1,1 @@
-"# Durhack XI" 
+# Durhack XI
