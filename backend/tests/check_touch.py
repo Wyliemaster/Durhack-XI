@@ -10,16 +10,16 @@ import sys
 import time
 from pathlib import Path
 
-# Allow this script to import config.py and sensors.py from backend/.
+# Allow this script to import config.py and the sensors package from backend/.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import config
-import sensors
+from sensors import touchsensor
 
 
 def main():
     config.validate()
-    sensors.init()
+    touchsensor.init()
 
     print(
         f"Touch sensor on GPIO{config.TOUCH_PIN} "
@@ -29,13 +29,13 @@ def main():
 
     try:
         while True:
-            state = "touched" if sensors.read_touch() else "not touched"
+            state = "touched" if touchsensor.is_pressed() else "not touched"
             print(state, flush=True)
             time.sleep(1)
     except KeyboardInterrupt:
         pass
     finally:
-        sensors.cleanup()
+        touchsensor.cleanup()
 
 
 if __name__ == "__main__":

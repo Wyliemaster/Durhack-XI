@@ -10,16 +10,16 @@ import sys
 import time
 from pathlib import Path
 
-# Allow this script to import config.py and sensors.py from backend/.
+# Allow this script to import config.py and the sensors package from backend/.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import config
-import sensors
+from sensors import sonicsensor
 
 
 def main():
     config.validate()
-    sensors.init()
+    sonicsensor.init()
 
     print(
         f"HC-SR04 on TRIG=GPIO{config.SONIC_TRIG_PIN} "
@@ -28,7 +28,7 @@ def main():
 
     try:
         while True:
-            distance_cm = sensors.read_sonic_distance_cm()
+            distance_cm = sonicsensor.read_distance_cm()
             if distance_cm is None:
                 print("no echo / out of range", flush=True)
             else:
@@ -37,7 +37,7 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
-        sensors.cleanup()
+        sonicsensor.cleanup()
 
 
 if __name__ == "__main__":

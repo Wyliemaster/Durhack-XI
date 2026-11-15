@@ -3,9 +3,13 @@
 Flask service that exposes the state of the HC-SR04 ultrasonic sensor and the
 3-pin touch sensor.
 
+The hardware code lives in `backend/sensors/`: `sonicsensor.py` and
+`touchsensor.py` own the devices, and `sensor_controller.py` aggregates them
+into one state dictionary.
+
 The endpoint reads the sensors directly on every request; there is no
-background sampler or cached sensor reading. Requests are serialised with a
-lock because the HC-SR04 trigger/echo pair cannot be used by two reads at once.
+background sampler or cached sensor reading. Each sensor module owns its own
+lock; the HC-SR04 trigger/echo pair cannot be used by two reads at once.
 
 ## API
 
@@ -120,12 +124,24 @@ python backend/tests/check_sonic.py
 python backend/tests/check_touch.py
 ```
 
-Both use the same `sensors.py` code as the API, log once per second, and
-release the GPIO pins on Ctrl+C. Stop the backend first; only one process can
-own the pins at a time.
+Both use the same sensor modules as the API, initialise only the sensor they
+check, log once per second, and release the GPIO pins on Ctrl+C. Stop the
+backend first; only one process can own the pins at a time.
 
 - `check_sonic.py` prints the distance in cm, or `no echo / out of range`.
 - `check_touch.py` prints `touched` or `not touched`.
+
+## Adding another sensor
+
+1. Create `backend/sensors/newsensor.py` with `init()`, `cleanup()`, and
+   `read()` returning a dict such as `{"newsensor": False}`.
+2. Add the module to `_SENSORS` in `backend/sensors/sensor_controller.py`.
+3. Add its pin/config constants and validation to `backend/config.py`.
+4. Optional: add `backend/tests/check_newsensor.py` using the same path
+   bootstrap as the existing check scripts.
+
+The controller merges each sensor's dict, so `GET /sensors_state` picks up the
+new key automatically.
 
 ## Configuration
 
@@ -192,25 +208,26 @@ Because the API returns levels rather than events, a tap shorter than the poll
 interval can be missed. Human touches are normally longer than 50 ms; if you
 need to catch very quick taps, poll faster or add a short latch to the backend.
 
-Use one game tab during the demo. Each tab polls independently; the backend
-lock will serialise the extra reads, but they all hit the same sensor.
+Use one game tab during the demo. Each tab polls independently; the sensor
+modules will serialise the extra reads, but they all hit the same sensors.
 
 ## Implementation note
 
 `gpiozero.DistanceSensor` is intentionally not used. It runs its own background
 thread that samples every 60 ms and keeps a median queue; it also ignores
 readings where no echo was received, which can leave a stale "close" value
-after the hand moves away. This backend reads the HC-SR04 directly inside
-`/sensors_state`, so the reported state is fresh and releases cleanly.
+after the hand moves away. `backend/sensors/sonicsensor.py` reads the HC-SR04
+directly, so the reported state is fresh and releases cleanly.
 
 ## Troubleshooting
 
 - **`Permission denied` on `/dev/gpiochip4`**: add your user to the `gpio`
   group and log out/in:
   `sudo usermod -aG gpio $USER`
-- **`Could not initialise the GPIO sensors`**: check the wiring and pin
-  numbers, and run `python3 -c "import lgpio; print('lgpio import ok')"`.
-  `GPIOZERO_PIN_FACTORY` defaults to `lgpio` in `sensors.py`.
+- **`Could not initialise the HC-SR04` or
+  `Could not initialise the touch sensor`**: check the wiring and pin numbers,
+  and run `python3 -c "import lgpio; print('lgpio import ok')"`.
+  `GPIOZERO_PIN_FACTORY` defaults to `lgpio` in the sensor modules.
 - **Sonic always false**: check 5 V on the HC-SR04, the ECHO divider, and the
   TRIG/ECHO pin numbers. Run with `LOG_LEVEL=DEBUG` to see the measured
   distance. The HC-SR04 cannot measure closer than about 2 cm.

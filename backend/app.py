@@ -6,7 +6,7 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 
 import config
-import sensors
+from sensors import sensor_controller
 
 app = Flask(__name__)
 CORS(app, resources={r"/sensors_state": {"origins": "*"}})
@@ -15,7 +15,7 @@ CORS(app, resources={r"/sensors_state": {"origins": "*"}})
 @app.get("/sensors_state")
 def sensors_state():
     try:
-        state = sensors.read_state()
+        state = sensor_controller.get_sensor_state()
     except RuntimeError as exc:
         response = jsonify({"error": str(exc)})
         response.headers["Cache-Control"] = "no-store"
@@ -42,7 +42,7 @@ def main():
         raise SystemExit(f"Configuration error: {exc}") from exc
 
     try:
-        sensors.init()
+        sensor_controller.init()
     except Exception as exc:
         logger.exception("Sensor startup failed")
         raise SystemExit(f"Sensor startup failed: {exc}") from exc
@@ -70,7 +70,7 @@ def main():
     except OSError as exc:
         raise SystemExit(f"Could not start the HTTP server: {exc}") from exc
     finally:
-        sensors.cleanup()
+        sensor_controller.cleanup()
 
 
 if __name__ == "__main__":
