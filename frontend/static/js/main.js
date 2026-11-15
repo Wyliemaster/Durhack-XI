@@ -381,6 +381,10 @@ var effect_pool = [];
 // How long a hit circle stays filled after being pressed
 const CIRCLE_FLASH_DURATION = 0.15; // seconds
 
+// How long a successful hit keeps its hit circle enlarged
+const CIRCLE_HIT_DURATION = 0.18; // seconds
+const CIRCLE_HIT_SCALE = 0.30;
+
 // How close (in seconds) a press must be to the note's centre reaching the
 // circle centre. Wider = more forgiving.
 const HIT_WINDOW = 0.22;
@@ -391,6 +395,7 @@ const NOTE_SYNC_MAX_CORRECTION = 0.6; // t units per second
 const NOTE_SYNC_SNAP = 0.35;          // larger errors snap to the target
 
 var circle_flash_timers = new Array(CHANNELS).fill(0);
+var circle_hit_timers = new Array(CHANNELS).fill(0);
 
 // How much a hit circle is squashed along the lane's depth axis
 const CIRCLE_PERSPECTIVE = 0.7;
@@ -544,7 +549,11 @@ function draw_circle(x, y, radius, fill_colour = null, fill_alpha = 1, channel =
         lane_source_names[channel] === null;
     const colour = inactive ? "#8b8b96" : CHANNEL_COLOURS[channel];
     const flash = fill_colour ? fill_alpha : 0;
-    const pulse = 1 + 0.16 * flash;
+    const hit = Math.max(
+        0,
+        Math.min(1, circle_hit_timers[channel] / CIRCLE_HIT_DURATION)
+    );
+    const pulse = 1 + CIRCLE_HIT_SCALE * hit;
 
     const ellipse = function (rx, ry) {
         ctx.beginPath();
@@ -1478,7 +1487,6 @@ function break_combo(message) {
     const previous = combo;
     combo = 0;
     last_milestone = 0;
-    reset_scene_pop();
 
     if (!effects_enabled || previous < 10 || editor_mode) {
         return;
@@ -1522,7 +1530,6 @@ function finish_song() {
     combo = 0;
     max_combo = 0;
     last_milestone = 0;
-    reset_scene_pop();
     active_notes.length = 0;
     clear_effects();
     update_editor_controls();
@@ -1547,64 +1554,6 @@ function finish_song() {
     }
 }
 
-// While a combo is alive the scene sits slightly enlarged; every hit adds a
-// quick 100ms punch on top. A miss resets it to normal.
-const SCENE_COMBO_SCALE = 1.10;
-const SCENE_HIT_SCALE = 1.15;
-
-var scene_animation = null;
-
-function get_stage_zoom() {
-    return document.querySelector(".stage-zoom");
-}
-
-function pop_scene() {
-    const stage_zoom = get_stage_zoom();
-
-    if (!stage_zoom) {
-        return;
-    }
-
-    // The combo hold is a plain transform; the per-hit punch is a
-    // compositor-only animation so it never forces layout.
-    stage_zoom.style.transform = "scale(" + SCENE_COMBO_SCALE + ")";
-
-    if (scene_animation) {
-        scene_animation.cancel();
-    }
-
-    if (typeof stage_zoom.animate !== "function") {
-        return;
-    }
-
-    const from_scale = combo <= 1 ? 1 : SCENE_COMBO_SCALE;
-
-    scene_animation = stage_zoom.animate(
-        [
-            { transform: "scale(" + from_scale + ")" },
-            { transform: "scale(" + SCENE_HIT_SCALE + ")", offset: 0.35 },
-            { transform: "scale(" + SCENE_COMBO_SCALE + ")" }
-        ],
-        {
-            duration: 100,
-            easing: "ease-out"
-        }
-    );
-}
-
-function reset_scene_pop() {
-    if (scene_animation) {
-        scene_animation.cancel();
-        scene_animation = null;
-    }
-
-    const stage_zoom = get_stage_zoom();
-
-    if (stage_zoom) {
-        stage_zoom.style.transform = "scale(1)";
-    }
-}
-
 function gameLoop() {
     const delta_time = get_delta_time();
 
@@ -1624,6 +1573,7 @@ function gameLoop() {
 
     for (let i = 0; i < CHANNELS; i++) {
         circle_flash_timers[i] = Math.max(0, circle_flash_timers[i] - delta_time);
+        circle_hit_timers[i] = Math.max(0, circle_hit_timers[i] - delta_time);
     }
 
     if (is_portrait()) {
@@ -2703,7 +2653,6 @@ function use_song_map(buffer, map) {
     combo = 0;
     max_combo = 0;
     last_milestone = 0;
-    reset_scene_pop();
     lane_source_names = map.lane_sources || [];
     lane_fallback_flags = map.lane_fallbacks || [];
     current_instrument_map = map.stems ? map : null;
@@ -2760,7 +2709,6 @@ function stop_song() {
     last_milestone = 0;
     attempt_broken = false;
     finish_banner = null;
-    reset_scene_pop();
     set_playing_state(false);
 
     active_notes.length = 0;
@@ -3382,6 +3330,7 @@ function start_manual_editor() {
     current_instrument_map = null;
     active_notes.length = 0;
     circle_flash_timers.fill(0);
+    circle_hit_timers.fill(0);
 
     update_editor_controls();
     update_demucs_button();
@@ -3585,10 +3534,10 @@ function start_song() {
         last_milestone = 0;
         attempt_broken = false;
         finish_banner = null;
-        reset_scene_pop();
         tick = 0;
         spawn_timer = 0;
         circle_flash_timers.fill(0);
+        circle_hit_timers.fill(0);
 
         // Pre-roll: normal playback travels notes from the top while the
         // song is silent, so notes at t=0 are playable and every note starts
@@ -4003,7 +3952,8 @@ function channel_up(channel)
     }
 
     if (hits > 0) {
-        pop_scene();
+        // Keep the feedback on the hit circle instead of zooming the stage.
+        circle_hit_timers[channel] = CIRCLE_HIT_DURATION;
         play_hit_click();
         check_milestone();
         play_hit_sound(channel);

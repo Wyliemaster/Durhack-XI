@@ -257,12 +257,9 @@ body.is-playing .backdrop-rays {
 .stage-zoom {
     position: relative;
     z-index: 1;
-    transform-origin: 50% 50%;
-    will-change: transform;
-    backface-visibility: hidden;
 }
 
-/* Score HUD lives outside the zooming playfield so it never pops. */
+/* Score HUD lives outside the playfield so it never moves with it. */
 .score-hud {
     position: absolute;
     top: 4px;
