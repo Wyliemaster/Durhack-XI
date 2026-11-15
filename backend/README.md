@@ -1,11 +1,11 @@
 # Sensor backend
 
-Flask service that exposes the state of the HC-SR04 ultrasonic sensor and the
-3-pin touch sensor.
+Flask service that exposes the state of the HC-SR04 ultrasonic sensor, the
+3-pin touch sensor, and the MPU6050 gyroscope.
 
-The hardware code lives in `backend/sensors/`: `sonicsensor.py` and
-`touchsensor.py` own the devices, and `sensor_controller.py` aggregates them
-into one state dictionary.
+The hardware code lives in `backend/sensors/`: `sonicsensor.py`,
+`touchsensor.py` and `gyrosensor.py` own the devices, and
+`sensor_controller.py` aggregates them into one state dictionary.
 
 The endpoint reads the sensors directly on every request; there is no
 background sampler or cached sensor reading. Each sensor module owns its own
@@ -18,21 +18,28 @@ GET http://<pi-ip>:5001/sensors_state
 ```
 
 ```json
-{"sonic": false, "touch": false}
+{
+  "sonic": false,
+  "touch": false,
+  "gyro": {"x": 0.12, "y": -0.08, "z": 0.0}
+}
 ```
 
 - `sonic` is `true` while something is within `SONIC_TRIGGER_CM` (default
   30 cm) and becomes `false` again at `SONIC_RELEASE_CM` (default 35 cm).
   No echo, timeout, or sensor error reports `false`.
 - `touch` is `true` while the touch sensor is touched.
-- Both values are levels, not events. The frontend should trigger game actions
-  on the `false -> true` edge.
+- `gyro` contains angular rates in degrees/second, rounded to two decimals.
+  Values are bias-corrected when `GYRO_CALIBRATE` is enabled. A read failure
+  reports zeros.
+- `sonic` and `touch` are levels, not events. The frontend should trigger game
+  actions on the `false -> true` edge.
 - Responses include `Cache-Control: no-store` and
   `Access-Control-Allow-Origin: *`.
 
-The endpoint blocks for the duration of the ultrasonic measurement: about
-3 ms at 30 cm and up to ~17 ms when no echo is received (with the default
-1 m maximum distance). That is well within a 50 ms poll interval.
+The endpoint blocks for the ultrasonic measurement (about 3 ms at 30 cm and up
+to ~17 ms with no echo) plus about 1 ms for the MPU6050 I2C read. That is well
+within a 50 ms poll interval.
 
 ## Wiring
 
@@ -79,10 +86,37 @@ Connect all grounds together.
 The default assumes SIG is HIGH when touched. If your module is active-low,
 set `TOUCH_ACTIVE_LOW=1`.
 
+### MPU6050 gyroscope
+
+| MPU6050 | Pi 5 |
+|---|---|
+| VCC | 3.3V (physical pin 1 or 17) |
+| GND | GND |
+| SDA | GPIO2 (physical pin 3) |
+| SCL | GPIO3 (physical pin 5) |
+
+Leave `AD0`, `XDA`, `XCL` and `INT` unconnected. AD0 floating gives I2C
+address `0x68`. Power the module from 3.3 V so SDA/SCL stay at safe logic
+levels.
+
+Enable I2C and confirm the sensor is visible:
+
+```bash
+sudo raspi-config
+# Interface Options -> I2C -> Yes, then reboot
+
+sudo apt install i2c-tools
+i2cdetect -y 1
+# 68 should appear in the grid
+```
+
+If it appears at `0x69`, AD0 is tied high; set `GYRO_I2C_ADDRESS=0x69`.
+
 ## Install and run (Raspberry Pi 5)
 
-The Pi needs `gpiozero` and `lgpio`. Raspberry Pi OS provides them; a venv
-must be created with `--system-site-packages` so it can see them.
+The Pi needs `gpiozero`, `lgpio` and `smbus2`. Raspberry Pi OS provides
+gpiozero and lgpio; `smbus2` is installed from `requirements.txt`. A venv must
+be created with `--system-site-packages` so it can see the system packages.
 
 ```bash
 cd /path/to/Durhack-XI
@@ -108,8 +142,8 @@ curl http://<pi-ip>:5001/sensors_state
 ```
 
 Run it with `python backend/app.py`, not `flask run`: `main()` is what
-initialises the GPIO devices. Only one backend process can own the pins at a
-time.
+initialises the devices. Only one backend process can own the GPIO/I2C devices
+at a time.
 
 The frontend is a separate process on its usual port (5000). Start it in
 another terminal as before; the browser will call this backend on port 5001.
@@ -122,14 +156,16 @@ root:
 ```bash
 python backend/tests/check_sonic.py
 python backend/tests/check_touch.py
+python backend/tests/check_gyro.py
 ```
 
-Both use the same sensor modules as the API, initialise only the sensor they
-check, log once per second, and release the GPIO pins on Ctrl+C. Stop the
-backend first; only one process can own the pins at a time.
+All three use the same sensor modules as the API, initialise only the sensor
+they check, log once per second, and release the GPIO/I2C devices on Ctrl+C.
+Stop the backend first; only one process can own the devices at a time.
 
 - `check_sonic.py` prints the distance in cm, or `no echo / out of range`.
 - `check_touch.py` prints `touched` or `not touched`.
+- `check_gyro.py` prints `x`, `y`, `z` angular rates in °/s.
 
 ## Adding another sensor
 
@@ -159,7 +195,12 @@ All settings are environment variables read at startup.
 | `SONIC_MAX_DISTANCE_M` | `1.0` | Maximum measured distance / timeout |
 | `TOUCH_ACTIVE_LOW` | `0` | Set to `1` for an active-low module |
 | `TOUCH_BOUNCE_S` | `0.02` | Touch debounce in seconds |
-| `LOG_LEVEL` | `INFO` | Use `DEBUG` for per-request distance logs |
+| `GYRO_I2C_BUS` | `1` | I2C bus (`/dev/i2c-1`) |
+| `GYRO_I2C_ADDRESS` | `0x68` | AD0 low; use `0x69` if AD0 is high |
+| `GYRO_RANGE_DPS` | `500` | 250, 500, 1000 or 2000 °/s |
+| `GYRO_CALIBRATE` | `1` | Startup gyro bias calibration |
+| `GYRO_CALIBRATION_SAMPLES` | `200` | Samples averaged during calibration |
+| `LOG_LEVEL` | `INFO` | Use `DEBUG` for per-request distance/gyro logs |
 
 Example:
 
@@ -183,6 +224,7 @@ async function pollSensors() {
         }
         const state = await response.json();
 
+        // state.gyro.x / state.gyro.y / state.gyro.z are available too.
         if (state.sonic && !previous.sonic) {
             // sonic just became true
         }
@@ -204,9 +246,10 @@ pollSensors();
 The HC-SR04 datasheet recommends a 60 ms measurement cycle. 50 ms usually
 works; if the distance readings are unstable, poll every 60 ms instead.
 
-Because the API returns levels rather than events, a tap shorter than the poll
-interval can be missed. Human touches are normally longer than 50 ms; if you
-need to catch very quick taps, poll faster or add a short latch to the backend.
+Because `sonic` and `touch` are levels rather than events, a tap shorter than
+the poll interval can be missed. Human touches are normally longer than 50 ms;
+if you need to catch very quick taps, poll faster or add a short latch to the
+backend.
 
 Use one game tab during the demo. Each tab polls independently; the sensor
 modules will serialise the extra reads, but they all hit the same sensors.
@@ -219,6 +262,10 @@ readings where no echo was received, which can leave a stale "close" value
 after the hand moves away. `backend/sensors/sonicsensor.py` reads the HC-SR04
 directly, so the reported state is fresh and releases cleanly.
 
+The MPU6050 is read over I2C on every request. Its gyro bias is averaged at
+startup; keep the sensor still for about a second, or set
+`GYRO_CALIBRATE=0`.
+
 ## Troubleshooting
 
 - **`Permission denied` on `/dev/gpiochip4`**: add your user to the `gpio`
@@ -228,6 +275,17 @@ directly, so the reported state is fresh and releases cleanly.
   `Could not initialise the touch sensor`**: check the wiring and pin numbers,
   and run `python3 -c "import lgpio; print('lgpio import ok')"`.
   `GPIOZERO_PIN_FACTORY` defaults to `lgpio` in the sensor modules.
+- **`Could not initialise the MPU6050`**: check 3.3 V, SDA/SCL wiring, and run
+  `i2cdetect -y 1`; `68` should appear. If it appears as `69`, set
+  `GYRO_I2C_ADDRESS=0x69`.
+- **`Permission denied` on `/dev/i2c-1`**: add your user to the `i2c` group
+  (`sudo usermod -aG i2c $USER`) and log out/in.
+- **`ModuleNotFoundError: smbus2`**: run
+  `pip install -r backend/requirements.txt`.
+- **Gyro values drift**: keep the sensor still during startup calibration. If
+  calibration is unreliable, set `GYRO_CALIBRATE=0` and compensate in the
+  frontend.
+- **Gyro values saturate**: raise `GYRO_RANGE_DPS` (1000 or 2000).
 - **Sonic always false**: check 5 V on the HC-SR04, the ECHO divider, and the
   TRIG/ECHO pin numbers. Run with `LOG_LEVEL=DEBUG` to see the measured
   distance. The HC-SR04 cannot measure closer than about 2 cm.

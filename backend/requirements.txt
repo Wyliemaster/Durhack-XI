@@ -1,5 +1,6 @@
 Flask>=3.1,<4.0
 flask-cors>=6.0,<7.0
+smbus2>=0.6,<1.0
 
 # gpiozero and lgpio are provided by Raspberry Pi OS:
 #   sudo apt install python3-gpiozero python3-lgpio

@@ -2,11 +2,11 @@
 
 import logging
 
-from . import sonicsensor, touchsensor
+from . import gyrosensor, sonicsensor, touchsensor
 
 logger = logging.getLogger(__name__)
 
-_SENSORS = (sonicsensor, touchsensor)
+_SENSORS = (sonicsensor, touchsensor, gyrosensor)
 _initialized = False
 
 

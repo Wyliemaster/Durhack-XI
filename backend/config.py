@@ -42,6 +42,18 @@ def _env_bool(name, default):
     )
 
 
+def _env_hex(name, default):
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        return int(raw, 16)
+    except ValueError:
+        raise ValueError(
+            f"{name} must be a hexadecimal integer like 0x68, got {raw!r}"
+        ) from None
+
+
 HOST = os.environ.get("SENSOR_HOST", "0.0.0.0").strip()
 PORT = _env_int("SENSOR_PORT", 5001)
 
@@ -55,6 +67,12 @@ SONIC_MAX_DISTANCE_M = _env_float("SONIC_MAX_DISTANCE_M", 1.0)
 
 TOUCH_ACTIVE_LOW = _env_bool("TOUCH_ACTIVE_LOW", False)
 TOUCH_BOUNCE_S = _env_float("TOUCH_BOUNCE_S", 0.02)
+
+GYRO_I2C_BUS = _env_int("GYRO_I2C_BUS", 1)
+GYRO_I2C_ADDRESS = _env_hex("GYRO_I2C_ADDRESS", 0x68)
+GYRO_RANGE_DPS = _env_int("GYRO_RANGE_DPS", 500)
+GYRO_CALIBRATE = _env_bool("GYRO_CALIBRATE", True)
+GYRO_CALIBRATION_SAMPLES = _env_int("GYRO_CALIBRATION_SAMPLES", 200)
 
 LOG_LEVEL_NAME = os.environ.get("LOG_LEVEL", "INFO").strip().upper()
 LOG_LEVEL = getattr(logging, LOG_LEVEL_NAME, None)
@@ -111,4 +129,24 @@ def validate():
     if TOUCH_BOUNCE_S < 0:
         raise ValueError(
             f"TOUCH_BOUNCE_S must be zero or greater, got {TOUCH_BOUNCE_S}"
+        )
+
+    if not 0 <= GYRO_I2C_BUS <= 10:
+        raise ValueError(
+            f"GYRO_I2C_BUS must be between 0 and 10, got {GYRO_I2C_BUS}"
+        )
+    if not 0x08 <= GYRO_I2C_ADDRESS <= 0x77:
+        raise ValueError(
+            "GYRO_I2C_ADDRESS must be between 0x08 and 0x77, "
+            f"got 0x{GYRO_I2C_ADDRESS:02X}"
+        )
+    if GYRO_RANGE_DPS not in {250, 500, 1000, 2000}:
+        raise ValueError(
+            "GYRO_RANGE_DPS must be one of 250, 500, 1000 or 2000, "
+            f"got {GYRO_RANGE_DPS}"
+        )
+    if not 1 <= GYRO_CALIBRATION_SAMPLES <= 2000:
+        raise ValueError(
+            "GYRO_CALIBRATION_SAMPLES must be between 1 and 2000, "
+            f"got {GYRO_CALIBRATION_SAMPLES}"
         )
