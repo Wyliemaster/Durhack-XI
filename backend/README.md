@@ -188,16 +188,23 @@ python backend/tests/check_sonic.py
 python backend/tests/check_touch.py
 python backend/tests/check_gyro.py
 python backend/tests/check_joystick.py
+python backend/tests/check_sensor_state.py
 ```
 
-All four use the same sensor modules as the API, initialise only the sensor
-they check, log repeatedly, and release the GPIO/I2C devices on Ctrl+C. Stop
-the backend first; only one process can own the devices at a time.
+The first four initialise only the sensor they check. `check_sensor_state.py`
+initialises the whole controller and prints the aggregated
+`get_sensor_state()` dictionary as JSON, so it needs all sensors connected.
+Keep the gyro still during its startup calibration.
+
+All of them use the same sensor modules as the API, log repeatedly, and
+release the GPIO/I2C devices on Ctrl+C. Stop the backend first; only one
+process can own the devices at a time.
 
 - `check_sonic.py` prints the distance in cm, or `no echo / out of range`.
 - `check_touch.py` prints `touched` or `not touched`.
 - `check_gyro.py` prints `x`, `y`, `z` angular rates in °/s.
 - `check_joystick.py` prints raw `x`/`y` values and the switch state.
+- `check_sensor_state.py` prints the complete aggregated state JSON.
 
 ## Adding another sensor
 
