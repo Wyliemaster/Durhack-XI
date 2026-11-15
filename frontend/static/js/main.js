@@ -1615,7 +1615,8 @@ function gameLoop() {
         ctx.font = "24px Arial";
         ctx.textAlign = "left";
         ctx.fillText(
-            "sync " + Math.round(sync_offset * 1000) + "ms  ([ / ])",
+            "sync " + Math.round(sync_offset * 1000) + "ms  ([ / ])" +
+            "  sensors " + (window.SENSOR_STATUS || "connecting"),
             20,
             canvas.height - 24
         );
@@ -1763,7 +1764,7 @@ function gameLoop() {
             draw_prompt("TRACK COMPLETE", "Score " + score);
         }
     } else if (!song_started) {
-        draw_prompt("PRESS ANY KEY TO START", "Song ready");
+        draw_prompt("PRESS ANY KEY OR SENSOR", "Song ready");
     }
 
     tick++;
@@ -4012,6 +4013,28 @@ function channel_up(channel)
     }
 }
 
+// Shared entry point for keyboard and physical sensor input.
+function handle_lane_input(channel) {
+    if (editor_mode) {
+        record_manual_note(channel);
+        return;
+    }
+
+    if (!song_started && !song_starting) {
+        start_song();
+        return;
+    }
+
+    // Ignore input during the countdown so fidgeting cannot break the combo.
+    if (!song_started || get_song_time() < 0) {
+        return;
+    }
+
+    channel_up(channel);
+}
+
+window.handle_lane_input = handle_lane_input;
+
 function get_particle_sprite(colour)
 {
     let sprite = particle_sprite_cache[colour];
@@ -4188,12 +4211,7 @@ if (DEBUG_INPUT_ENABLED) {
         }
 
         event.preventDefault();
-
-        if (editor_mode) {
-            record_manual_note(channel);
-        } else {
-            channel_up(channel);
-        }
+        handle_lane_input(channel);
     });
 }
 
