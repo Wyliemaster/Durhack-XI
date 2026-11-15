@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 frontend/static/models/htdemucs.onnx 
 frontend/venv/ 
+frontend/Nothing_Else_Matters_Remastered.mp3
