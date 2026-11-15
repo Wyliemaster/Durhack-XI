@@ -20,4 +20,4 @@ def enable_cross_origin_isolation(response):
     return response
 
 if __name__ == "__main__":
-    socketio.run(app, debug=True)
+    socketio.run(app, host="0.0.0.0", port=5000, debug=True)
