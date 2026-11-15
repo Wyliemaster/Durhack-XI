@@ -2,27 +2,118 @@
 <html>
 <head>
     <title>DurHack Game</title>
-    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%23E566B0'/%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Audiowide&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css?v=10">
 </head>
 <body>
-    <h1>Durhack Hero</h1>
+    <div class="backdrop" aria-hidden="true">
+        <div class="backdrop-sky"></div>
+        <div class="backdrop-rays"></div>
+        <div class="backdrop-sun"></div>
+        <div class="backdrop-clouds"></div>
+        <div class="backdrop-blimp"></div>
+        <div class="backdrop-streaks"></div>
+        <div class="backdrop-props">
+            <div class="prop prop-speaker"></div>
+        </div>
+        <div class="backdrop-sign">DURHACK<br>SHIP&nbsp;IT</div>
+    </div>
+
+    <header class="topbar">
+        <h1>DurHack Hero <span class="title-sub">// after hours</span></h1>
+
+        <div class="song-controls">
+            <label class="song-upload" title="Load an audio file, optionally together with a saved .dmap note map">
+                Load song
+                <input type="file" id="song-upload" accept="audio/*,.dmap,.json,application/json" multiple>
+            </label>
+            <button id="demucs-button" type="button" title="Analyse stems with Demucs (slow)" disabled>
+                Demucs
+            </button>
+            <button id="manual-button" type="button" title="Record a note map manually with keys 1-4" disabled>
+                Manual map
+            </button>
+            <button id="save-map-button" type="button" title="Download the current instrument note map (.dmap)" hidden>
+                Save map
+            </button>
+            <button id="fx-toggle" type="button" title="Toggle celebration effects (dinos, confetti, shake)" aria-pressed="true">
+                FX ON
+            </button>
+            <span id="song-name">No song loaded</span>
+        </div>
+    </header>
 
     <div class="stage">
-        <div class="guitar-neck" aria-hidden="true">
-            <div class="fretboard"></div>
-            <div class="strings"></div>
+        <div class="stage-zoom">
+            <div class="guitar-neck" aria-hidden="true">
+                <div class="fretboard"></div>
+                <div class="frets"></div>
+                <div class="strings"></div>
+            </div>
+            <canvas id="game" width="1920" height="1080"></canvas>
         </div>
-        <canvas id="game" width="1920" height="1080"></canvas>
+
+        <div id="score-hud" class="score-hud">
+            <span class="score-hud__corner score-hud__max">max <b id="hud-max">000</b></span>
+            <span class="score-hud__corner score-hud__best">best <b id="hud-best">0000</b></span>
+            <span id="hud-label" class="score-hud__label">SCORE</span>
+            <span id="hud-value" class="score-hud__value">0000</span>
+            <span id="hud-combo" class="score-hud__combo is-zero">
+                <span id="hud-combo-label">combo 000</span>
+                <span id="hud-blocks"></span>
+                <span class="hud-cursor" aria-hidden="true"></span>
+            </span>
+        </div>
     </div>
 
-    <div class="song-controls">
-        <label class="song-upload">
-            Upload song
-            <input type="file" id="song-upload" accept="audio/*">
-        </label>
-        <span id="song-name">No song loaded</span>
+    <div id="editor-controls" class="editor-controls" hidden>
+        <span id="editor-rec" class="editor-rec">&#9679; REC</span>
+        <span id="editor-count">Notes: 0</span>
+        <button id="editor-replay" type="button">Replay</button>
+        <button id="editor-save" type="button">Save .dmap</button>
+        <button id="editor-exit" type="button">Exit</button>
     </div>
 
-    <script src="/static/js/main.js"></script>
+    <div id="fx-glow" class="fx-glow" aria-hidden="true"></div>
+    <div id="confetti-layer" class="confetti-layer" aria-hidden="true"></div>
+
+    <div id="dino-overlay" class="dino-overlay" hidden aria-hidden="true">
+        <div id="dino-actor-left" class="dino-actor dino-actor--left">
+            <div class="dino-body">
+                <img id="dino-image-left" class="dino-image" alt="">
+                <div class="dino-plate">
+                    <span class="dino-prompt">&gt;</span><span id="dino-text-left"></span>
+                </div>
+            </div>
+        </div>
+        <div id="dino-actor-right" class="dino-actor dino-actor--right">
+            <div class="dino-body">
+                <img id="dino-image-right" class="dino-image" alt="">
+                <div class="dino-plate">
+                    <span class="dino-prompt">&gt;</span><span id="dino-text-right"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="demucs-overlay" class="demucs-overlay" hidden>
+        <div class="demucs-panel">
+            <div class="demucs-spinner" aria-hidden="true"></div>
+            <h2>Separating instruments</h2>
+            <p id="demucs-overlay-status">Loading Demucs...</p>
+            <div class="demucs-progress">
+                <div id="demucs-progress-fill"></div>
+            </div>
+            <p class="demucs-hint">
+                This can take several minutes. You can hide this screen and keep playing the BPM chart.
+            </p>
+            <button id="demucs-hide" type="button">Hide and keep playing</button>
+        </div>
+    </div>
+
+    <script src="/static/js/main.js?v=10"></script>
 </body>
 </html>

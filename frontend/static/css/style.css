@@ -1,23 +1,380 @@
+:root {
+    --dh-pink: #E566B0;
+    --dh-magenta: #982272;
+    --dh-plum: #611545;
+    --dh-ice: #BFEAFD;
+    --dh-mint: #8DE2CC;
+    --dh-teal: #9FE3E3;
+    --dh-cyan: #81F0FF;
+    --dh-lime: #CEE765;
+    --dh-yellow: #FBFF00;
+    --dh-steel: #4E79A1;
+    --dh-paper: #FAFAFA;
+    --dh-ink: #0d0710;
+    --font-ui: "Space Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: ui-monospace, "Cascadia Code", Consolas, "Courier New", monospace;
+    --font-display: "Audiowide", "Space Grotesk", system-ui, sans-serif;
+    --fret-duration: 2s;
+}
+
+html {
+    background: #07040b;
+}
+
 body {
+    margin: 0;
+    min-height: 100vh;
+    overflow: hidden;
     background:
-        radial-gradient(ellipse 90% 60% at 50% 100%, rgba(138, 74, 32, 0.35) 0%, transparent 70%),
-        linear-gradient(to bottom, #26282e 0%, #2c2e35 34%, #211a14 60%, #140f0b 100%);
+        radial-gradient(ellipse 70% 45% at 50% 110%, rgba(229, 102, 176, 0.18) 0%, transparent 70%),
+        linear-gradient(to bottom, #07040b 0%, #120a18 40%, #1b0d20 68%, #08050c 100%);
     background-attachment: fixed;
     color: white;
     text-align: center;
-    font-family: sans-serif;
+    font-family: var(--font-ui);
 }
 
+.topbar {
+    position: relative;
+    z-index: 6;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 16px;
+    padding: 12px 16px 6px;
+}
+
+h1 {
+    position: relative;
+    z-index: 5;
+    margin: 0;
+    padding: 0;
+    text-align: left;
+    font-family: var(--font-display);
+    font-size: clamp(24px, 3.4vw, 44px);
+    font-weight: 400;
+    letter-spacing: 0.03em;
+    color: var(--dh-paper);
+    text-shadow:
+        0 0 18px rgba(229, 102, 176, 0.55),
+        0 0 42px rgba(152, 34, 114, 0.35);
+}
+
+@media (max-width: 980px) {
+    .topbar {
+        justify-content: center;
+    }
+
+    h1 {
+        text-align: center;
+        padding-left: 0;
+        font-size: clamp(20px, 5vw, 30px);
+    }
+
+    .title-sub {
+        display: none;
+    }
+}
+
+.title-sub {
+    display: inline-block;
+    margin-left: 0.4em;
+    font-family: var(--font-mono);
+    font-size: 0.4em;
+    letter-spacing: 0.18em;
+    color: var(--dh-pink);
+    opacity: 0.8;
+    vertical-align: middle;
+    text-shadow: none;
+}
+
+/* ------------------------------------------------------------------
+   DurHack after-hours backdrop: sun, rays, clouds and stage props.
+   Purely decorative and fixed behind everything else.
+   ------------------------------------------------------------------ */
+.backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    transition: opacity 0.4s ease, filter 0.4s ease;
+}
+
+body.is-playing .backdrop {
+    opacity: 0.38;
+    filter: saturate(0.7) brightness(0.85);
+}
+
+body.is-playing .backdrop-rays {
+    animation-play-state: paused;
+}
+
+.backdrop > * {
+    position: absolute;
+}
+
+.backdrop-sky {
+    inset: 0;
+    background:
+        radial-gradient(ellipse 60% 38% at 50% 106%, rgba(229, 102, 176, 0.35) 0%, transparent 68%),
+        radial-gradient(ellipse 95% 55% at 50% 118%, rgba(152, 34, 114, 0.4) 0%, transparent 72%),
+        linear-gradient(180deg, #07040b 0%, #120a1a 42%, #1d0d22 70%, #0b0610 100%);
+}
+
+.backdrop-sun {
+    left: 50%;
+    bottom: -46vw;
+    width: 96vw;
+    height: 96vw;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 50%,
+        #e566b0 0%,
+        #cf4d99 42%,
+        #982272 62%,
+        rgba(97, 21, 69, 0) 71%);
+    opacity: 0.32;
+    box-shadow: 0 0 120px 40px rgba(229, 102, 176, 0.18);
+}
+
+.backdrop-rays {
+    left: 50%;
+    bottom: -62vw;
+    width: 160vw;
+    height: 160vw;
+    transform: translateX(-50%);
+    background: repeating-conic-gradient(from 0deg at 50% 50%,
+        rgba(229, 102, 176, 0.16) 0deg 1.6deg,
+        transparent 1.6deg 11deg);
+    -webkit-mask-image: radial-gradient(circle at 50% 50%, transparent 26%, #000 40%, transparent 66%);
+    mask-image: radial-gradient(circle at 50% 50%, transparent 26%, #000 40%, transparent 66%);
+    opacity: 0.55;
+    animation: backdrop-spin 140s linear infinite;
+}
+
+@keyframes backdrop-spin {
+    to { transform: translateX(-50%) rotate(360deg); }
+}
+
+.backdrop-clouds {
+    left: -5%;
+    right: -5%;
+    bottom: 16vh;
+    height: 26vh;
+    background:
+        radial-gradient(ellipse 22% 38% at 18% 60%, rgba(97, 21, 69, 0.55) 0%, transparent 70%),
+        radial-gradient(ellipse 30% 46% at 46% 45%, rgba(97, 21, 69, 0.4) 0%, transparent 72%),
+        radial-gradient(ellipse 24% 34% at 78% 66%, rgba(97, 21, 69, 0.5) 0%, transparent 72%);
+    opacity: 0.6;
+}
+
+.backdrop-blimp {
+    right: 7vw;
+    top: 11vh;
+    width: 84px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(191, 234, 253, 0.1);
+    border-top: 1px solid rgba(191, 234, 253, 0.16);
+    opacity: 0.8;
+}
+
+.backdrop-blimp::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -10px;
+    width: 24px;
+    height: 10px;
+    transform: translateX(-50%);
+    border-radius: 0 0 5px 5px;
+    background: rgba(191, 234, 253, 0.1);
+}
+
+.backdrop-streaks {
+    inset: 0;
+    background: repeating-linear-gradient(115deg,
+        transparent 0 26px,
+        rgba(191, 234, 253, 0.045) 26px 27px);
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 55%);
+    mask-image: linear-gradient(to bottom, #000 0%, transparent 55%);
+}
+
+.backdrop-props {
+    inset: 0;
+}
+
+.prop {
+    position: absolute;
+    bottom: 0;
+    opacity: 0.55;
+}
+
+.prop-speaker {
+    left: 0.5vw;
+    width: clamp(48px, 7vw, 120px);
+    height: 34vh;
+    border: 1px solid rgba(191, 234, 253, 0.1);
+    border-radius: 6px 6px 0 0;
+    background:
+        radial-gradient(circle at 50% 24%, rgba(13, 7, 16, 0.95) 0 22%, rgba(191, 234, 253, 0.08) 23% 26%, transparent 27%),
+        radial-gradient(circle at 50% 58%, rgba(13, 7, 16, 0.95) 0 30%, rgba(191, 234, 253, 0.08) 31% 34%, transparent 35%),
+        linear-gradient(180deg, #1c0f20, #0c0611);
+    box-shadow: inset 0 0 30px rgba(229, 102, 176, 0.12);
+}
+
+.backdrop-sign {
+    left: 0.7vw;
+    top: 30vh;
+    padding: 10px 5px;
+    writing-mode: vertical-rl;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    color: var(--dh-pink);
+    opacity: 0.45;
+    text-shadow: 0 0 10px rgba(229, 102, 176, 0.8);
+    border-left: 1px solid rgba(229, 102, 176, 0.35);
+}
+
+@media (max-width: 760px) {
+    .backdrop-blimp,
+    .backdrop-clouds,
+    .backdrop-sign {
+        display: none;
+    }
+}
+
+/* Soft vignette keeps the focus on the playfield without a hard frame. */
 .stage {
     position: relative;
     width: fit-content;
     margin: 0 auto;
 }
 
+.stage-zoom {
+    position: relative;
+    z-index: 1;
+    transform-origin: 50% 50%;
+    will-change: transform;
+    backface-visibility: hidden;
+}
+
+/* Score HUD lives outside the zooming playfield so it never pops. */
+.score-hud {
+    position: absolute;
+    top: 4px;
+    left: 50%;
+    z-index: 3;
+    width: min(320px, 76%);
+    padding: 5px 14px 7px;
+    transform: translateX(-50%);
+    border: 1px solid rgba(229, 102, 176, 0.42);
+    border-radius: 10px;
+    background: rgba(9, 5, 13, 0.86);
+    box-shadow:
+        0 0 24px rgba(229, 102, 176, 0.12),
+        inset 0 0 18px rgba(152, 34, 114, 0.12);
+    font-family: var(--font-mono);
+    text-align: center;
+    pointer-events: none;
+}
+
+.score-hud__corner {
+    position: absolute;
+    top: 6px;
+    font-size: clamp(8px, 0.75vw, 11px);
+    color: rgba(255, 255, 255, 0.34);
+}
+
+.score-hud__max {
+    left: 10px;
+}
+
+.score-hud__best {
+    right: 10px;
+}
+
+.score-hud__corner b {
+    font-weight: 600;
+}
+
+.score-hud__label {
+    display: block;
+    font-size: clamp(8px, 0.75vw, 11px);
+    letter-spacing: 0.14em;
+    color: rgba(191, 234, 253, 0.62);
+}
+
+.score-hud__value {
+    display: block;
+    font-size: clamp(24px, 2.4vw, 36px);
+    font-weight: 700;
+    line-height: 1.05;
+    color: var(--dh-paper);
+    text-shadow: 0 0 16px rgba(229, 102, 176, 0.45);
+}
+
+.score-hud__combo {
+    display: block;
+    margin-top: 2px;
+    font-size: clamp(10px, 1vw, 13px);
+    color: var(--dh-pink);
+    white-space: nowrap;
+}
+
+.score-hud__combo.is-zero {
+    color: rgba(255, 255, 255, 0.28);
+}
+
+#hud-blocks {
+    margin-left: 6px;
+    letter-spacing: 2px;
+}
+
+.hud-cursor {
+    display: inline-block;
+    width: 0.45em;
+    height: 0.9em;
+    margin-left: 3px;
+    vertical-align: -0.05em;
+    background: currentColor;
+    opacity: 0;
+}
+
+.score-hud__combo.has-combo .hud-cursor {
+    opacity: 0.9;
+    animation: hud-blink 1s steps(1) infinite;
+}
+
+@keyframes hud-blink {
+    50% { opacity: 0; }
+}
+
+.score-hud.recording .score-hud__value {
+    color: #ff5a5a;
+}
+
+.score-hud.recording .score-hud__combo {
+    color: rgba(191, 234, 253, 0.7);
+}
+
+.score-hud.recording .score-hud__corner {
+    display: none;
+}
+
+@media (max-width: 900px) {
+    .score-hud__corner {
+        display: none;
+    }
+}
+
 canvas {
     display: block;
     position: relative;
-    z-index: 1;
+    z-index: 2;
     image-rendering: pixelated;
     /* Actual size is set by fit_canvas_to_viewport() in main.js */
 }
@@ -130,14 +487,231 @@ canvas {
     right: 16px;
     z-index: 10;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
+    justify-content: flex-end;
     gap: 10px;
-    max-width: 320px;
+    max-width: 480px;
     padding: 7px 11px;
     border: 1px solid rgba(255, 255, 255, 0.18);
     border-radius: 8px;
     background: rgba(18, 18, 18, 0.78);
     font-size: 13px;
+}
+
+#demucs-button {
+    cursor: pointer;
+    padding: 5px 9px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    background: #2f5d8a;
+    color: white;
+    font: inherit;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+#demucs-button:hover:not(:disabled) {
+    background: #3d74a8;
+}
+
+#demucs-button:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+#save-map-button {
+    cursor: pointer;
+    padding: 5px 9px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    background: rgba(240, 216, 168, 0.16);
+    color: #f0d8a8;
+    font: inherit;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+#save-map-button:hover {
+    background: rgba(240, 216, 168, 0.28);
+}
+
+#manual-button {
+    cursor: pointer;
+    padding: 5px 9px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    background: #6a4b8a;
+    color: white;
+    font: inherit;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+#manual-button:hover:not(:disabled) {
+    background: #7f5aa5;
+}
+
+#manual-button:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.editor-controls {
+    position: fixed;
+    left: 16px;
+    bottom: 16px;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 10px;
+    background: rgba(18, 18, 22, 0.9);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    font-size: 13px;
+}
+
+.editor-controls[hidden] {
+    display: none;
+}
+
+.editor-rec {
+    color: rgba(255, 90, 90, 0.35);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.editor-rec.recording {
+    color: #ff5a5a;
+    animation: editor-pulse 1s ease-in-out infinite;
+}
+
+@keyframes editor-pulse {
+    50% { opacity: 0.45; }
+}
+
+#editor-count {
+    color: rgba(255, 255, 255, 0.7);
+    min-width: 62px;
+}
+
+.editor-controls button {
+    cursor: pointer;
+    padding: 6px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 7px;
+    background: #2f5d8a;
+    color: white;
+    font: inherit;
+    font-weight: 600;
+}
+
+.editor-controls button:hover:not(:disabled) {
+    background: #3d74a8;
+}
+
+.editor-controls button:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+#editor-exit {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+#editor-exit:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.demucs-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(5, 5, 8, 0.8);
+    backdrop-filter: blur(4px);
+}
+
+.demucs-overlay[hidden] {
+    display: none;
+}
+
+.demucs-panel {
+    width: min(92vw, 480px);
+    padding: 26px 28px 24px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 16px;
+    background: rgba(20, 20, 24, 0.96);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+    text-align: center;
+}
+
+.demucs-panel h2 {
+    margin: 12px 0 8px;
+    font-size: 22px;
+}
+
+#demucs-overlay-status {
+    min-height: 20px;
+    margin: 0 0 14px;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 14px;
+}
+
+.demucs-spinner {
+    width: 38px;
+    height: 38px;
+    margin: 0 auto;
+    border: 4px solid rgba(255, 255, 255, 0.16);
+    border-top-color: #f0d8a8;
+    border-radius: 50%;
+    animation: demucs-spin 0.9s linear infinite;
+}
+
+@keyframes demucs-spin {
+    to { transform: rotate(360deg); }
+}
+
+.demucs-progress {
+    height: 8px;
+    margin-bottom: 16px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+#demucs-progress-fill {
+    width: 0%;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #f0d8a8, #ffe9bd);
+    transition: width 0.3s ease;
+}
+
+.demucs-hint {
+    margin: 0 0 16px;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+#demucs-hide {
+    cursor: pointer;
+    padding: 8px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    background: #2f5d8a;
+    color: white;
+    font: inherit;
+    font-weight: 600;
+}
+
+#demucs-hide:hover {
+    background: #3d74a8;
 }
 
 .song-upload {
@@ -159,8 +733,506 @@ canvas {
 }
 
 #song-name {
+    flex-basis: 100%;
+    max-width: 100%;
     overflow: hidden;
+    text-align: right;
     text-overflow: ellipsis;
     white-space: nowrap;
     opacity: 0.75;
+}
+
+/* ------------------------------------------------------------------
+   Moving frets: the neck geometry stays exactly where it is; only the
+   fret pattern travels toward the viewer, looping seamlessly.
+   ------------------------------------------------------------------ */
+.frets {
+    position: absolute;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.stage.portrait .frets {
+    left: -6.1%;
+    right: -6.1%;
+    top: 6.25%;
+    bottom: 0;
+    clip-path: polygon(43.3% 0, 56.7% 0, 100% 100%, 0 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.3) 30%, #000 75%);
+    mask-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.3) 30%, #000 75%);
+}
+
+.stage.portrait .frets::before {
+    content: "";
+    position: absolute;
+    top: -6vh;
+    right: 0;
+    bottom: -6vh;
+    left: 0;
+    background-image: linear-gradient(to bottom,
+        transparent 0%,
+        transparent 86%,
+        rgba(229, 102, 176, 0.36) 86%,
+        rgba(229, 102, 176, 0.36) 90%,
+        transparent 90%,
+        transparent 100%);
+    background-size: 100% 6vh;
+    background-repeat: repeat-y;
+    animation: frets-towards-portrait var(--fret-duration, 2s) linear infinite;
+    will-change: transform;
+}
+
+@keyframes frets-towards-portrait {
+    from { transform: translateY(0); }
+    to { transform: translateY(6vh); }
+}
+
+.stage.landscape .frets {
+    left: 6.25%;
+    right: 0;
+    top: 8.91%;
+    bottom: -2.83%;
+    clip-path: polygon(0 2.35%, 100% 37.55%, 100% 51.75%, 0 97%);
+    -webkit-mask-image: linear-gradient(to right, #000 25%, rgba(0, 0, 0, 0.3) 70%, transparent 100%);
+    mask-image: linear-gradient(to right, #000 25%, rgba(0, 0, 0, 0.3) 70%, transparent 100%);
+}
+
+.stage.landscape .frets::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: -6vw;
+    bottom: 0;
+    left: -6vw;
+    background-image: linear-gradient(to right,
+        transparent 0%,
+        transparent 86%,
+        rgba(229, 102, 176, 0.36) 86%,
+        rgba(229, 102, 176, 0.36) 90%,
+        transparent 90%,
+        transparent 100%);
+    background-size: 6vw 100%;
+    background-repeat: repeat-x;
+    animation: frets-towards-landscape var(--fret-duration, 2s) linear infinite;
+    will-change: transform;
+}
+
+@keyframes frets-towards-landscape {
+    from { transform: translateX(0); }
+    to { transform: translateX(-6vw); }
+}
+
+/* ------------------------------------------------------------------
+   DurHack theme pass: dark glass panels, neon accents, pixel dinos.
+   ------------------------------------------------------------------ */
+.song-controls {
+    position: static;
+    top: auto;
+    right: auto;
+    max-width: min(480px, 100%);
+    margin-left: auto;
+    border: 1px solid rgba(229, 102, 176, 0.28);
+    border-radius: 10px;
+    background: rgba(13, 7, 16, 0.88);
+    box-shadow:
+        0 10px 30px rgba(0, 0, 0, 0.45),
+        inset 0 0 24px rgba(152, 34, 114, 0.12);
+    backdrop-filter: blur(6px);
+    font-family: var(--font-ui);
+}
+
+#demucs-button,
+#manual-button,
+#save-map-button,
+#fx-toggle {
+    border: 1px solid rgba(191, 234, 253, 0.18);
+    border-radius: 6px;
+    background: rgba(78, 121, 161, 0.24);
+    color: var(--dh-ice);
+    font: inherit;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+#demucs-button {
+    padding: 5px 9px;
+}
+
+#manual-button {
+    padding: 5px 9px;
+    background: rgba(152, 34, 114, 0.35);
+    color: #ffd9ef;
+}
+
+#save-map-button {
+    padding: 5px 9px;
+    background: rgba(229, 102, 176, 0.16);
+    color: var(--dh-pink);
+}
+
+#fx-toggle {
+    padding: 5px 9px;
+    background: rgba(141, 226, 204, 0.12);
+    color: var(--dh-mint);
+    border-color: rgba(141, 226, 204, 0.35);
+    letter-spacing: 0.06em;
+    font-family: var(--font-mono);
+    font-size: 12px;
+}
+
+#demucs-button:hover:not(:disabled) {
+    background: rgba(78, 121, 161, 0.4);
+}
+
+#manual-button:hover:not(:disabled) {
+    background: rgba(152, 34, 114, 0.52);
+}
+
+#save-map-button:hover:not(:disabled) {
+    background: rgba(229, 102, 176, 0.28);
+}
+
+#fx-toggle:hover {
+    background: rgba(141, 226, 204, 0.22);
+}
+
+#fx-toggle.fx-off {
+    color: rgba(255, 255, 255, 0.42);
+    border-color: rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.song-upload {
+    padding: 5px 10px;
+    border-radius: 6px;
+    background: linear-gradient(180deg, #f58cc7, var(--dh-pink));
+    color: #260a1a;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+.song-upload:hover {
+    background: linear-gradient(180deg, #ffa8d6, #ef7cbe);
+}
+
+#song-name {
+    color: rgba(191, 234, 253, 0.8);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    opacity: 0.85;
+}
+
+.editor-controls {
+    border: 1px solid rgba(229, 102, 176, 0.3);
+    background: rgba(13, 7, 16, 0.92);
+    box-shadow:
+        0 10px 30px rgba(0, 0, 0, 0.5),
+        inset 0 0 24px rgba(152, 34, 114, 0.12);
+    font-family: var(--font-ui);
+}
+
+.editor-controls button {
+    border: 1px solid rgba(191, 234, 253, 0.18);
+    background: rgba(78, 121, 161, 0.28);
+    color: var(--dh-ice);
+}
+
+.editor-controls button:hover:not(:disabled) {
+    background: rgba(78, 121, 161, 0.44);
+}
+
+#editor-count {
+    font-family: var(--font-mono);
+    color: rgba(191, 234, 253, 0.75);
+}
+
+.editor-rec {
+    font-family: var(--font-mono);
+}
+
+.demucs-overlay {
+    background: rgba(5, 3, 8, 0.82);
+}
+
+.demucs-panel {
+    border: 1px solid rgba(229, 102, 176, 0.3);
+    background: rgba(13, 7, 16, 0.97);
+    box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.6),
+        inset 0 0 40px rgba(152, 34, 114, 0.14);
+}
+
+.demucs-panel h2 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    letter-spacing: 0.02em;
+}
+
+.demucs-spinner {
+    border-top-color: var(--dh-pink);
+}
+
+.demucs-progress {
+    background: rgba(229, 102, 176, 0.14);
+}
+
+#demucs-progress-fill {
+    background: linear-gradient(90deg, var(--dh-magenta), var(--dh-pink), var(--dh-cyan));
+}
+
+#demucs-hide {
+    border: 1px solid rgba(191, 234, 253, 0.22);
+    background: rgba(78, 121, 161, 0.3);
+    color: var(--dh-ice);
+}
+
+#demucs-hide:hover {
+    background: rgba(78, 121, 161, 0.46);
+}
+
+/* Dark lacquered neck so the cartoon guitar reads as part of the venue. */
+.stage.portrait .fretboard {
+    background:
+        radial-gradient(circle at 50% 36%, rgba(229, 102, 176, 0.55) 0 0.55%, transparent 0.7%),
+        radial-gradient(circle at 50% 50%, rgba(229, 102, 176, 0.55) 0 0.55%, transparent 0.7%),
+        radial-gradient(circle at 50% 64%, rgba(229, 102, 176, 0.55) 0 0.55%, transparent 0.7%),
+        linear-gradient(90deg,
+            rgba(0, 0, 0, 0.72) 0%,
+            rgba(0, 0, 0, 0) 24%,
+            rgba(129, 240, 255, 0.05) 50%,
+            rgba(0, 0, 0, 0) 76%,
+            rgba(0, 0, 0, 0.72) 100%),
+        linear-gradient(90deg, rgba(11, 7, 16, 0.82), rgba(38, 16, 36, 0.72) 50%, rgba(11, 7, 16, 0.82));
+}
+
+.stage.portrait .strings {
+    background: repeating-conic-gradient(from 180deg at 50% 0%,
+        rgba(191, 234, 253, 0.26) 0deg 0.45deg,
+        transparent 0.45deg 9.8deg);
+    opacity: 0.7;
+}
+
+.stage.landscape .fretboard {
+    background:
+        radial-gradient(circle at 34% 50%, rgba(229, 102, 176, 0.55) 0 0.55%, transparent 0.7%),
+        radial-gradient(circle at 48% 50%, rgba(229, 102, 176, 0.55) 0 0.55%, transparent 0.7%),
+        radial-gradient(circle at 62% 50%, rgba(229, 102, 176, 0.55) 0 0.55%, transparent 0.7%),
+        linear-gradient(180deg,
+            rgba(0, 0, 0, 0.72) 0%,
+            rgba(0, 0, 0, 0) 24%,
+            rgba(129, 240, 255, 0.05) 50%,
+            rgba(0, 0, 0, 0) 76%,
+            rgba(0, 0, 0, 0.72) 100%),
+        linear-gradient(180deg, rgba(11, 7, 16, 0.82), rgba(38, 16, 36, 0.72) 50%, rgba(11, 7, 16, 0.82));
+}
+
+.stage.landscape .strings {
+    background: repeating-conic-gradient(from 270deg at 100% 50%,
+        rgba(191, 234, 253, 0.26) 0deg 0.45deg,
+        transparent 0.45deg 7.6deg);
+    opacity: 0.7;
+}
+
+/* ---------- Pixel dino celebration overlay ---------- */
+.dino-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 4;
+    pointer-events: none;
+}
+
+.dino-overlay[hidden] {
+    display: none;
+}
+
+.dino-actor {
+    position: fixed;
+    bottom: max(13vh, 84px);
+    width: min(21vw, 226px);
+    opacity: 0;
+    transform: translateX(-135%);
+    transition:
+        transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1),
+        opacity 0.4s ease;
+    will-change: transform, opacity;
+}
+
+.dino-actor--left {
+    left: 0;
+}
+
+.dino-actor--right {
+    right: 0;
+    transform: translateX(135%);
+}
+
+.dino-actor--left.show {
+    transform: translateX(3%);
+}
+
+.dino-actor--right.show {
+    transform: translateX(-3%);
+}
+
+.dino-actor.show {
+    opacity: 1;
+}
+
+/* In landscape the playfield reaches the left edge, so both dinos enter
+   from the right margin: one high, one low, clear of the hit circles. */
+body.landscape .dino-actor {
+    left: auto;
+    right: 14px;
+    top: 130px;
+    bottom: auto;
+    width: min(15vw, 190px);
+    transform: translateX(140%);
+}
+
+body.landscape .dino-actor--right {
+    top: auto;
+    bottom: 14px;
+}
+
+body.landscape .dino-actor--left.show,
+body.landscape .dino-actor--right.show {
+    transform: translateX(-3%);
+}
+
+.dino-body {
+    position: relative;
+    transform-origin: 50% 92%;
+}
+
+.dino-actor.show .dino-body {
+    animation: dino-shake 0.3s ease-in-out 0.42s 3;
+}
+
+.dino-actor.show.hop .dino-body {
+    animation: dino-hop 0.52s ease-out 0.42s 2;
+}
+
+.dino-image {
+    display: block;
+    width: 100%;
+    height: auto;
+    image-rendering: pixelated;
+    filter: drop-shadow(0 12px 22px rgba(0, 0, 0, 0.55));
+}
+
+.dino-plate {
+    position: absolute;
+    left: 50%;
+    bottom: 2%;
+    transform: translateX(-50%);
+    max-width: 92vw;
+    padding: 5px 10px;
+    border: 1px solid rgba(229, 102, 176, 0.55);
+    border-radius: 6px;
+    background: rgba(9, 5, 13, 0.93);
+    box-shadow:
+        0 0 18px rgba(229, 102, 176, 0.28),
+        inset 0 0 14px rgba(152, 34, 114, 0.2);
+    color: var(--dh-ice);
+    font-family: var(--font-mono);
+    font-size: clamp(11px, 1.15vw, 16px);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+.dino-prompt {
+    margin-right: 0.4em;
+    color: var(--dh-yellow);
+}
+
+@keyframes dino-shake {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    25% { transform: translate(-4px, 1px) rotate(-2deg); }
+    75% { transform: translate(4px, -1px) rotate(2deg); }
+}
+
+@keyframes dino-hop {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    20% { transform: translateY(-14px) rotate(-3deg); }
+    40% { transform: translateY(0) rotate(2deg); }
+    60% { transform: translateY(-9px) rotate(2deg); }
+    80% { transform: translateY(0) rotate(-1deg); }
+}
+
+/* ---------- Keycap confetti ---------- */
+.confetti-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 3;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.confetti-layer .keycap {
+    position: absolute;
+    top: 24vh;
+    padding: 2px 6px;
+    border: 1px solid rgba(191, 234, 253, 0.35);
+    border-radius: 4px;
+    background: rgba(13, 7, 16, 0.9);
+    color: var(--dh-lime);
+    font-family: var(--font-mono);
+    font-size: 15px;
+    font-weight: 700;
+    box-shadow: 0 0 12px rgba(206, 231, 101, 0.3);
+    animation: keycap-fall 1.5s cubic-bezier(0.3, 0.6, 0.7, 1) forwards;
+}
+
+@keyframes keycap-fall {
+    0% { opacity: 0; transform: translate(0, -18px) rotate(0deg); }
+    12% { opacity: 1; }
+    100% { opacity: 0; transform: translate(var(--drift, 0px), 52vh) rotate(var(--spin, 180deg)); }
+}
+
+/* ---------- Edge glow for big combos ---------- */
+.fx-glow {
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    opacity: 0;
+    box-shadow: inset 0 0 150px 32px var(--glow, var(--dh-yellow));
+}
+
+.fx-glow.active {
+    animation: fx-glow-pulse 0.7s ease-out forwards;
+}
+
+@keyframes fx-glow-pulse {
+    0% { opacity: 0.8; }
+    100% { opacity: 0; }
+}
+
+@media (max-width: 760px) {
+    .dino-actor {
+        width: min(24vw, 160px);
+        bottom: 15vh;
+    }
+
+    .dino-plate {
+        font-size: 11px;
+        padding: 4px 7px;
+    }
+}
+
+@media (max-width: 980px) {
+    .song-controls {
+        margin: 0 auto;
+        max-width: calc(100vw - 24px);
+    }
+}
+
+/* Respect reduced motion for ambient decoration only. Celebration
+   animations stay available because the FX toggle is an explicit opt-in. */
+@media (prefers-reduced-motion: reduce) {
+    .backdrop-rays {
+        animation: none;
+    }
 }
