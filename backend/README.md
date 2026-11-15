@@ -1,10 +1,10 @@
 # Sensor backend
 
 Flask service that exposes the state of the HC-SR04 ultrasonic sensor, the
-3-pin touch sensor, and the MPU6050 gyroscope.
+3-pin touch sensor, the MPU6050 gyroscope, and the analog joystick.
 
 The hardware code lives in `backend/sensors/`: `sonicsensor.py`,
-`touchsensor.py` and `gyrosensor.py` own the devices, and
+`touchsensor.py`, `gyrosensor.py` and `joysticksensor.py` own the devices, and
 `sensor_controller.py` aggregates them into one state dictionary.
 
 The endpoint reads the sensors directly on every request; there is no
@@ -21,7 +21,8 @@ GET http://<pi-ip>:5001/sensors_state
 {
   "sonic": false,
   "touch": false,
-  "gyro": {"x": 0.12, "y": -0.08, "z": 0.0}
+  "gyro": {"x": 0.12, "y": -0.08, "z": 0.0},
+  "joystick": {"x": 128, "y": 127, "button": false}
 }
 ```
 
@@ -32,13 +33,16 @@ GET http://<pi-ip>:5001/sensors_state
 - `gyro` contains angular rates in degrees/second, rounded to two decimals.
   Values are bias-corrected when `GYRO_CALIBRATE` is enabled. A read failure
   reports zeros.
+- `joystick` contains raw 8-bit ADC values (0–255) for the two axes and the
+  switch state. `x` is VRX (A1), `y` is VRY (A0), and `button` is `true` while
+  the stick is pressed. The frontend can normalize the axes.
 - `sonic` and `touch` are levels, not events. The frontend should trigger game
   actions on the `false -> true` edge.
 - Responses include `Cache-Control: no-store` and
   `Access-Control-Allow-Origin: *`.
 
 The endpoint blocks for the ultrasonic measurement (about 3 ms at 30 cm and up
-to ~17 ms with no echo) plus about 1 ms for the MPU6050 I2C read. That is well
+to ~17 ms with no echo) plus about 1.5 ms for the two I2C sensors. That is well
 within a 50 ms poll interval.
 
 ## Wiring
@@ -112,6 +116,32 @@ i2cdetect -y 1
 
 If it appears at `0x69`, AD0 is tied high; set `GYRO_I2C_ADDRESS=0x69`.
 
+### ADS7830 + analog joystick
+
+| ADS7830 | Pi 5 |
+|---|---|
+| VCC | 3.3V (physical pin 1 or 17) |
+| GND | GND |
+| SDA | GPIO2 (physical pin 3) |
+| SCL | GPIO3 (physical pin 5) |
+
+The ADS7830 shares the I2C bus with the MPU6050; their addresses must differ.
+Run `i2cdetect -y 1` and expect both `68` (MPU6050) and the ADC address
+(usually `4b`, sometimes `48`).
+
+| Joystick | Connects to |
+|---|---|
+| VCC | 3.3V |
+| GND | GND |
+| VRY | ADS7830 A0 (channel 0) |
+| VRX | ADS7830 A1 (channel 1) |
+| SW | GPIO21 (pin 40) with a 10k pull-up to 3.3V |
+
+The switch is active-low (pressed connects to GND), which matches the default
+config. `JOYSTICK_X_CHANNEL` defaults to 1 (VRX/A1) and `JOYSTICK_Y_CHANNEL`
+to 0 (VRY/A0). If your module's ADC address is `0x48`, set
+`JOYSTICK_I2C_ADDRESS=0x48`.
+
 ## Install and run (Raspberry Pi 5)
 
 The Pi needs `gpiozero`, `lgpio` and `smbus2`. Raspberry Pi OS provides
@@ -157,15 +187,17 @@ root:
 python backend/tests/check_sonic.py
 python backend/tests/check_touch.py
 python backend/tests/check_gyro.py
+python backend/tests/check_joystick.py
 ```
 
-All three use the same sensor modules as the API, initialise only the sensor
-they check, log once per second, and release the GPIO/I2C devices on Ctrl+C.
-Stop the backend first; only one process can own the devices at a time.
+All four use the same sensor modules as the API, initialise only the sensor
+they check, log repeatedly, and release the GPIO/I2C devices on Ctrl+C. Stop
+the backend first; only one process can own the devices at a time.
 
 - `check_sonic.py` prints the distance in cm, or `no echo / out of range`.
 - `check_touch.py` prints `touched` or `not touched`.
 - `check_gyro.py` prints `x`, `y`, `z` angular rates in °/s.
+- `check_joystick.py` prints raw `x`/`y` values and the switch state.
 
 ## Adding another sensor
 
@@ -200,7 +232,14 @@ All settings are environment variables read at startup.
 | `GYRO_RANGE_DPS` | `500` | 250, 500, 1000 or 2000 °/s |
 | `GYRO_CALIBRATE` | `1` | Startup gyro bias calibration |
 | `GYRO_CALIBRATION_SAMPLES` | `200` | Samples averaged during calibration |
-| `LOG_LEVEL` | `INFO` | Use `DEBUG` for per-request distance/gyro logs |
+| `JOYSTICK_I2C_BUS` | `1` | I2C bus |
+| `JOYSTICK_I2C_ADDRESS` | `0x4B` | ADS7830 address |
+| `JOYSTICK_X_CHANNEL` | `1` | VRX → A1 |
+| `JOYSTICK_Y_CHANNEL` | `0` | VRY → A0 |
+| `JOYSTICK_BUTTON_PIN` | `21` | Joystick SW input |
+| `JOYSTICK_BUTTON_ACTIVE_LOW` | `1` | Pressed = low |
+| `JOYSTICK_BUTTON_BOUNCE_S` | `0.02` | Switch debounce |
+| `LOG_LEVEL` | `INFO` | Use `DEBUG` for per-request sensor logs |
 
 Example:
 
@@ -224,7 +263,7 @@ async function pollSensors() {
         }
         const state = await response.json();
 
-        // state.gyro.x / state.gyro.y / state.gyro.z are available too.
+        // state.gyro.x/y/z and state.joystick.x/y/button are available too.
         if (state.sonic && !previous.sonic) {
             // sonic just became true
         }
@@ -266,6 +305,9 @@ The MPU6050 is read over I2C on every request. Its gyro bias is averaged at
 startup; keep the sensor still for about a second, or set
 `GYRO_CALIBRATE=0`.
 
+The joystick axes are raw ADS7830 values (0–255); the frontend can normalize
+them to `-1…1`. The switch is active-low with the external 10k pull-up.
+
 ## Troubleshooting
 
 - **`Permission denied` on `/dev/gpiochip4`**: add your user to the `gpio`
@@ -286,6 +328,16 @@ startup; keep the sensor still for about a second, or set
   calibration is unreliable, set `GYRO_CALIBRATE=0` and compensate in the
   frontend.
 - **Gyro values saturate**: raise `GYRO_RANGE_DPS` (1000 or 2000).
+- **`Could not initialise the joystick`**: check the ADS7830 address with
+  `i2cdetect -y 1` (`4b` or `48`), the SDA/SCL wiring, and the switch on
+  GPIO21. The I2C bus is shared with the MPU6050.
+- **Joystick axes swapped**: swap `JOYSTICK_X_CHANNEL` and
+  `JOYSTICK_Y_CHANNEL`, or invert in the frontend.
+- **Joystick button stuck/reversed**: the default assumes an active-low switch
+  with an external 10k pull-up. Set `JOYSTICK_BUTTON_ACTIVE_LOW=0` if yours is
+  wired the other way.
+- **Joystick values jump around**: check common ground, 3.3 V on the joystick,
+  and the breadboard contacts for SDA/SCL.
 - **Sonic always false**: check 5 V on the HC-SR04, the ECHO divider, and the
   TRIG/ECHO pin numbers. Run with `LOG_LEVEL=DEBUG` to see the measured
   distance. The HC-SR04 cannot measure closer than about 2 cm.

@@ -74,6 +74,14 @@ GYRO_RANGE_DPS = _env_int("GYRO_RANGE_DPS", 500)
 GYRO_CALIBRATE = _env_bool("GYRO_CALIBRATE", True)
 GYRO_CALIBRATION_SAMPLES = _env_int("GYRO_CALIBRATION_SAMPLES", 200)
 
+JOYSTICK_I2C_BUS = _env_int("JOYSTICK_I2C_BUS", 1)
+JOYSTICK_I2C_ADDRESS = _env_hex("JOYSTICK_I2C_ADDRESS", 0x4B)
+JOYSTICK_X_CHANNEL = _env_int("JOYSTICK_X_CHANNEL", 1)
+JOYSTICK_Y_CHANNEL = _env_int("JOYSTICK_Y_CHANNEL", 0)
+JOYSTICK_BUTTON_PIN = _env_int("JOYSTICK_BUTTON_PIN", 21)
+JOYSTICK_BUTTON_ACTIVE_LOW = _env_bool("JOYSTICK_BUTTON_ACTIVE_LOW", True)
+JOYSTICK_BUTTON_BOUNCE_S = _env_float("JOYSTICK_BUTTON_BOUNCE_S", 0.02)
+
 LOG_LEVEL_NAME = os.environ.get("LOG_LEVEL", "INFO").strip().upper()
 LOG_LEVEL = getattr(logging, LOG_LEVEL_NAME, None)
 if not isinstance(LOG_LEVEL, int):
@@ -92,6 +100,7 @@ def validate():
         "SONIC_TRIG_PIN": SONIC_TRIG_PIN,
         "SONIC_ECHO_PIN": SONIC_ECHO_PIN,
         "TOUCH_PIN": TOUCH_PIN,
+        "JOYSTICK_BUTTON_PIN": JOYSTICK_BUTTON_PIN,
     }
     for name, pin in pins.items():
         if not 0 <= pin <= 27:
@@ -100,7 +109,8 @@ def validate():
             )
     if len(set(pins.values())) != len(pins):
         raise ValueError(
-            "SONIC_TRIG_PIN, SONIC_ECHO_PIN and TOUCH_PIN must all be different"
+            "SONIC_TRIG_PIN, SONIC_ECHO_PIN, TOUCH_PIN and "
+            "JOYSTICK_BUTTON_PIN must all be different"
         )
 
     if SONIC_TRIGGER_CM <= 0:
@@ -149,4 +159,29 @@ def validate():
         raise ValueError(
             "GYRO_CALIBRATION_SAMPLES must be between 1 and 2000, "
             f"got {GYRO_CALIBRATION_SAMPLES}"
+        )
+
+    if not 0 <= JOYSTICK_I2C_BUS <= 10:
+        raise ValueError(
+            f"JOYSTICK_I2C_BUS must be between 0 and 10, got {JOYSTICK_I2C_BUS}"
+        )
+    if not 0x08 <= JOYSTICK_I2C_ADDRESS <= 0x77:
+        raise ValueError(
+            "JOYSTICK_I2C_ADDRESS must be between 0x08 and 0x77, "
+            f"got 0x{JOYSTICK_I2C_ADDRESS:02X}"
+        )
+    if not 0 <= JOYSTICK_X_CHANNEL <= 7:
+        raise ValueError(
+            f"JOYSTICK_X_CHANNEL must be between 0 and 7, got {JOYSTICK_X_CHANNEL}"
+        )
+    if not 0 <= JOYSTICK_Y_CHANNEL <= 7:
+        raise ValueError(
+            f"JOYSTICK_Y_CHANNEL must be between 0 and 7, got {JOYSTICK_Y_CHANNEL}"
+        )
+    if JOYSTICK_X_CHANNEL == JOYSTICK_Y_CHANNEL:
+        raise ValueError("JOYSTICK_X_CHANNEL and JOYSTICK_Y_CHANNEL must differ")
+    if JOYSTICK_BUTTON_BOUNCE_S < 0:
+        raise ValueError(
+            "JOYSTICK_BUTTON_BOUNCE_S must be zero or greater, "
+            f"got {JOYSTICK_BUTTON_BOUNCE_S}"
         )
